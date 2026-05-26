@@ -9,11 +9,11 @@ Frontend (HTML/CSS/JS + Monaco Editor)
         │
         │  HTTP POST /api/translate
         ▼
-Backend (FastAPI - Python)
+Backend (Flask - Python)
         │
-        │  Anthropic Claude API
+        │  Google Gemini API
         ▼
-   Modèle LLM (Claude)
+   Modèle LLM (gemini-1.5-flash)
 ```
 
 ## Stack technique
@@ -21,8 +21,8 @@ Backend (FastAPI - Python)
 | Couche     | Technologie                          |
 |------------|--------------------------------------|
 | Frontend   | HTML / CSS / JavaScript, Monaco Editor |
-| Backend    | Python 3.12, FastAPI, Uvicorn        |
-| IA         | Anthropic Claude (claude-opus-4-5)   |
+| Backend    | Python 3.14, Flask                   |
+| IA         | Google Gemini (gemini-1.5-flash)     |
 | Docker     | Docker + docker-compose              |
 
 ## Langages supportés
@@ -33,8 +33,8 @@ Python, JavaScript, TypeScript, Java, C, C++, C#, Go, Rust, PHP, Ruby, Swift, Ko
 
 ### Prérequis
 
-- Python 3.12+
-- Une clé API Anthropic (https://console.anthropic.com)
+- Python 3.10+
+- Une clé API Google Gemini gratuite (https://aistudio.google.com)
 - Docker (optionnel)
 
 ### Sans Docker
@@ -43,9 +43,9 @@ Python, JavaScript, TypeScript, Java, C, C++, C#, Go, Rust, PHP, Ruby, Swift, Ko
 ```bash
 cd backend
 cp .env.example .env
-# Éditez .env et ajoutez votre clé ANTHROPIC_API_KEY
+# Éditez .env et ajoutez votre clé GEMINI_API_KEY
 pip install -r requirements.txt
-uvicorn main:app --reload
+python main.py
 ```
 
 **Frontend :**  
@@ -59,14 +59,13 @@ python -m http.server 3000
 
 ```bash
 cp backend/.env.example backend/.env
-# Éditez backend/.env et ajoutez votre clé ANTHROPIC_API_KEY
+# Éditez backend/.env et ajoutez votre clé GEMINI_API_KEY
 docker-compose up --build
 ```
 
 L'application sera disponible sur :
 - Frontend : http://localhost:3000
 - Backend API : http://localhost:8000
-- Docs API : http://localhost:8000/docs
 
 ## Utilisation
 
@@ -80,7 +79,7 @@ L'application sera disponible sur :
 ```
 code_trad/
 ├── backend/
-│   ├── main.py              # Point d'entrée FastAPI
+│   ├── main.py              # Point d'entrée Flask
 │   ├── requirements.txt
 │   ├── .env.example
 │   └── routers/
@@ -121,7 +120,7 @@ code_trad/
 
 | Membre | Responsabilité |
 |--------|---------------|
-| Membre 1 | Backend FastAPI + intégration Claude API |
+| Membre 1 | Backend Flask + intégration Gemini API |
 | Membre 2 | Frontend HTML/CSS + Monaco Editor |
 | Membre 3 | Feature explication + UX (panel pédagogique) |
 | Membre 4 | Docker + README + slides de soutenance |
