@@ -2,6 +2,15 @@
 
 Application web qui traduit du code source d'un langage de programmation vers un autre, avec explications pédagogiques des différences et pièges à éviter.
 
+## Aperçu
+
+![Interface Globale](img/app_global.png)
+
+### Analyse détaillée
+| Explications Pédagogiques | Pièges Courants |
+| :---: | :---: |
+| ![Focus Explication](img/focus_explication.png) | ![Focus Pièges](img/focus_piege_courants.png) |
+
 ## Architecture
 
 ```
@@ -21,7 +30,7 @@ Backend (Flask - Python)
 | Couche     | Technologie                          |
 |------------|--------------------------------------|
 | Frontend   | HTML / CSS / JavaScript, Monaco Editor |
-| Backend    | Python 3.14, Flask                   |
+| Backend    | Python 3.12, Flask                   |
 | IA         | Google Gemini (gemini-1.5-flash)     |
 | Docker     | Docker + docker-compose              |
 
@@ -88,6 +97,10 @@ code_trad/
 │   ├── index.html           # Interface principale
 │   ├── style.css            # Styles (thème sombre)
 │   └── app.js               # Logique Monaco + appels API
+├── img/
+│   ├── app_global.png
+│   ├── focus_explication.png
+│   └── focus_piege_courants.png
 ├── Dockerfile.backend
 ├── Dockerfile.frontend
 ├── docker-compose.yml
