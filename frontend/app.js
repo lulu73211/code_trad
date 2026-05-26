@@ -20,6 +20,7 @@ const btnSwap      = document.getElementById('btn-swap');
 const btnClear     = document.getElementById('btn-clear');
 const btnCopySrc   = document.getElementById('btn-copy-source');
 const btnCopyTgt   = document.getElementById('btn-copy-target');
+const btnSaveFile  = document.getElementById('btn-save-file');
 const btnUpload    = document.getElementById('btn-upload');
 const btnDownload  = document.getElementById('btn-download');
 const fileInput    = document.getElementById('file-input');
@@ -35,6 +36,7 @@ const tgtChars     = document.getElementById('target-chars');
 const toast        = document.getElementById('toast');
 const txSource     = document.getElementById('editor-source');
 const txTarget     = document.getElementById('editor-target');
+const detailsResizer = document.getElementById('details-resizer');
 
 // ─── Stats ────────────────────────────────────────────────────────
 function updateSourceStats() {
@@ -179,26 +181,157 @@ fileInput.addEventListener('change', e => {
 });
 
 // ─── Download ─────────────────────────────────────────────────────
-btnDownload.addEventListener('click', () => {
-  const code = txTarget.value;
-  if (!code) { showToast('⚠ Rien à télécharger', 'error'); return; }
-  const ext = { javascript:'js', typescript:'ts', python:'py', java:'java', csharp:'cs', cpp:'cpp', go:'go', rust:'rs', php:'php', ruby:'rb' };
-  const filename = `traduction.${ext[selTarget.value] || 'txt'}`;
+const CODE_EXTENSIONS = { javascript:'js', typescript:'ts', python:'py', java:'java', csharp:'cs', cpp:'cpp', go:'go', rust:'rs', php:'php', ruby:'rb' };
+
+function getTranslatedFilename() {
+  return `traduction.${CODE_EXTENSIONS[selTarget.value] || 'txt'}`;
+}
+
+function triggerDownload(code, filename) {
   const a = Object.assign(document.createElement('a'), {
     href: URL.createObjectURL(new Blob([code], { type: 'text/plain' })),
     download: filename
   });
-  a.click(); URL.revokeObjectURL(a.href);
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+async function saveTranslatedCodeToFile(code) {
+  const filename = getTranslatedFilename();
+
+  if (window.showSaveFilePicker) {
+    const handle = await window.showSaveFilePicker({
+      suggestedName: filename,
+      types: [{
+        description: 'Fichier de code',
+        accept: { 'text/plain': [`.${filename.split('.').pop()}`] }
+      }]
+    });
+
+    const writable = await handle.createWritable();
+    await writable.write(code);
+    await writable.close();
+    showToast(`✓ ${filename} enregistré`, 'success');
+    return;
+  }
+
+  triggerDownload(code, filename);
+  showToast(`✓ ${filename} téléchargé`, 'success');
+}
+
+btnDownload.addEventListener('click', () => {
+  const code = txTarget.value;
+  if (!code) { showToast('⚠ Rien à télécharger', 'error'); return; }
+  const filename = getTranslatedFilename();
+  triggerDownload(code, filename);
   showToast(`✓ ${filename} téléchargé`, 'success');
 });
 
+btnSaveFile.addEventListener('click', async () => {
+  const code = txTarget.value;
+  if (!code) { showToast('⚠ Rien à enregistrer', 'error'); return; }
+
+  try {
+    await saveTranslatedCodeToFile(code);
+  } catch (err) {
+    if (err && err.name === 'AbortError') return;
+    console.error(err);
+    showToast('✗ Impossible d’enregistrer le fichier', 'error');
+  }
+});
+
 // ─── Panneau d'analyse ────────────────────────────────────────────
-function showDetails(explanation, pitfalls) {
-  document.getElementById('details-explanation').textContent = explanation || '';
-  document.getElementById('details-pitfalls').innerHTML =
-    (pitfalls || []).map(p => `<li>${p}</li>`).join('');
-  document.getElementById('details-panel').classList.add('visible');
+const detailsPanel = document.getElementById('details-panel');
+const detailsExplanation = document.getElementById('details-explanation');
+const detailsPitfalls = document.getElementById('details-pitfalls');
+
+const DETAILS_PANEL_MIN_HEIGHT = 120;
+const DETAILS_PANEL_MAX_HEIGHT = 320;
+
+function clampDetailsPanelHeight(height) {
+  const viewportCap = Math.max(DETAILS_PANEL_MIN_HEIGHT, Math.floor(window.innerHeight * 0.45));
+  return Math.max(DETAILS_PANEL_MIN_HEIGHT, Math.min(height, Math.min(DETAILS_PANEL_MAX_HEIGHT, viewportCap)));
 }
+
+function setDetailsPanelHeight(height) {
+  detailsPanel.style.setProperty('--details-panel-height', `${clampDetailsPanelHeight(height)}px`);
+}
+
+setDetailsPanelHeight(160);
+
+function normalizeDetailsText(value) {
+  return typeof value === 'string' ? value.replace(/\r\n/g, '\n').trim() : '';
+}
+
+function renderPitfalls(pitfalls) {
+  detailsPitfalls.replaceChildren();
+
+  const items = Array.isArray(pitfalls)
+    ? pitfalls
+    : typeof pitfalls === 'string'
+      ? pitfalls.split(/\n+/)
+      : [];
+
+  const cleanItems = items
+    .map(item => normalizeDetailsText(item).replace(/^[\-*•]\s*/, ''))
+    .filter(Boolean);
+
+  for (const item of cleanItems) {
+    const li = document.createElement('li');
+    li.textContent = item;
+    detailsPitfalls.appendChild(li);
+  }
+
+  if (!cleanItems.length) {
+    const li = document.createElement('li');
+    li.textContent = 'Aucun piège signalé.';
+    detailsPitfalls.appendChild(li);
+  }
+}
+
+function showDetails(explanation, pitfalls) {
+  const explanationText = normalizeDetailsText(explanation);
+
+  detailsExplanation.textContent = explanationText || 'Aucune explication fournie.';
+  renderPitfalls(pitfalls);
+
+  detailsPanel.classList.add('visible');
+}
+
+let detailsResizeState = null;
+
+function stopDetailsResize() {
+  if (!detailsResizeState) return;
+  detailsResizeState = null;
+  document.body.style.userSelect = '';
+  document.body.style.cursor = '';
+}
+
+detailsResizer.addEventListener('pointerdown', event => {
+  if (!detailsPanel.classList.contains('visible')) return;
+
+  event.preventDefault();
+  detailsResizeState = {
+    startY: event.clientY,
+    startHeight: detailsPanel.getBoundingClientRect().height
+  };
+
+  document.body.style.userSelect = 'none';
+  document.body.style.cursor = 'ns-resize';
+  detailsResizer.setPointerCapture(event.pointerId);
+});
+
+detailsResizer.addEventListener('pointermove', event => {
+  if (!detailsResizeState) return;
+
+  const delta = detailsResizeState.startY - event.clientY;
+  setDetailsPanelHeight(detailsResizeState.startHeight + delta);
+});
+
+detailsResizer.addEventListener('pointerup', stopDetailsResize);
+detailsResizer.addEventListener('pointercancel', stopDetailsResize);
+detailsResizer.addEventListener('lostpointercapture', stopDetailsResize);
+window.addEventListener('pointerup', stopDetailsResize);
 
 // ─── Toast ────────────────────────────────────────────────────────
 let toastTimer = null;
