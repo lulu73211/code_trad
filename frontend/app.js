@@ -1,6 +1,7 @@
 /**
  * CodeTrad — app.js
  * Traduction via le backend Flask (POST /api/translate)
+ * Intégration Monaco Editor
  */
 
 const BACKEND_URL = 'http://localhost:8000';
@@ -10,6 +11,13 @@ const LANG_NAMES = {
   python: 'Python', javascript: 'JavaScript', typescript: 'TypeScript',
   java: 'Java', csharp: 'C#', cpp: 'C++', go: 'Go',
   rust: 'Rust', php: 'PHP', ruby: 'Ruby'
+};
+
+// Mappage des langages pour Monaco
+const MONACO_LANGS = {
+  python: 'python', javascript: 'javascript', typescript: 'typescript',
+  java: 'java', csharp: 'csharp', cpp: 'cpp', go: 'go',
+  rust: 'rust', php: 'php', ruby: 'ruby'
 };
 
 // ─── DOM refs ─────────────────────────────────────────────────────
@@ -34,28 +42,72 @@ const srcChars     = document.getElementById('source-chars');
 const tgtLines     = document.getElementById('target-lines');
 const tgtChars     = document.getElementById('target-chars');
 const toast        = document.getElementById('toast');
-const txSource     = document.getElementById('editor-source');
-const txTarget     = document.getElementById('editor-target');
 const detailsResizer = document.getElementById('details-resizer');
+
+let editorSource, editorTarget;
+
+// ─── Initialisation Monaco ────────────────────────────────────────
+require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs' } });
+
+require(['vs/editor/editor.main'], function () {
+  const commonOptions = {
+    theme: 'vs-dark',
+    automaticLayout: true,
+    minimap: { enabled: false },
+    fontSize: 14,
+    fontFamily: '"DM Mono", "Fira Code", monospace',
+    lineHeight: 22,
+    scrollBeyondLastLine: false,
+    padding: { top: 16, bottom: 16 },
+    renderLineHighlight: 'all',
+    scrollbar: {
+      useShadows: false,
+      verticalHasArrows: false,
+      horizontalHasArrows: false,
+      vertical: 'visible',
+      horizontal: 'visible',
+      verticalScrollbarSize: 10,
+      horizontalScrollbarSize: 10
+    }
+  };
+
+  editorSource = monaco.editor.create(document.getElementById('editor-source-monaco'), {
+    ...commonOptions,
+    value: '',
+    language: MONACO_LANGS[selSource.value]
+  });
+
+  editorTarget = monaco.editor.create(document.getElementById('editor-target-monaco'), {
+    ...commonOptions,
+    value: '',
+    language: MONACO_LANGS[selTarget.value],
+    readOnly: true
+  });
+
+  editorSource.onDidChangeModelContent(() => {
+    updateSourceStats();
+  });
+
+  updateSourceStats();
+});
 
 // ─── Stats ────────────────────────────────────────────────────────
 function updateSourceStats() {
-  const val = txSource.value;
+  if (!editorSource) return;
+  const val = editorSource.getValue();
   const lines = val ? val.split('\n').length : 0;
   srcLines.textContent = `${lines} ligne${lines !== 1 ? 's' : ''}`;
   srcChars.textContent = `${val.length} caractère${val.length !== 1 ? 's' : ''}`;
 }
 
 function updateTargetStats() {
-  const val = txTarget.value;
+  if (!editorTarget) return;
+  const val = editorTarget.getValue();
   if (!val) { tgtLines.textContent = '—'; tgtChars.textContent = '—'; return; }
   const lines = val.split('\n').length;
   tgtLines.textContent = `${lines} ligne${lines !== 1 ? 's' : ''}`;
   tgtChars.textContent = `${val.length} caractère${val.length !== 1 ? 's' : ''}`;
 }
-
-txSource.addEventListener('input', updateSourceStats);
-updateSourceStats();
 
 // ─── Status & badge ───────────────────────────────────────────────
 function setStatus(msg) { statusMsg.textContent = msg; }
@@ -88,7 +140,8 @@ async function translateCode(sourceCode, sourceLang, targetLang) {
 
 // ─── Bouton Traduire ──────────────────────────────────────────────
 async function handleTranslate() {
-  const code = txSource.value.trim();
+  if (!editorSource) return;
+  const code = editorSource.getValue().trim();
   if (!code) { showToast('⚠ Colle du code à traduire', 'error'); return; }
 
   const sourceLang = selSource.value;
@@ -104,8 +157,8 @@ async function handleTranslate() {
   try {
     const result = await translateCode(code, sourceLang, targetLang);
 
-    txTarget.value = result.translated_code;
-    txTarget.style.display = 'block';
+    editorTarget.setValue(result.translated_code);
+    document.getElementById('editor-target-monaco').style.display = 'block';
     placeholder.classList.add('hidden');
     updateTargetStats();
     showDetails(result.explanation, result.pitfalls);
@@ -132,20 +185,29 @@ document.addEventListener('keydown', e => {
 
 // ─── Swap ─────────────────────────────────────────────────────────
 btnSwap.addEventListener('click', () => {
+  if (!editorSource || !editorTarget) return;
   const sv = selSource.value, tv = selTarget.value;
   selSource.value = tv; selTarget.value = sv;
   labelSource.textContent = LANG_NAMES[tv];
   labelTarget.textContent = LANG_NAMES[sv];
-  const sc = txSource.value, tc = txTarget.value;
-  txSource.value = tc; txTarget.value = sc;
+
+  const sc = editorSource.getValue(), tc = editorTarget.getValue();
+  editorSource.setValue(tc);
+  editorTarget.setValue(sc);
+
+  monaco.editor.setModelLanguage(editorSource.getModel(), MONACO_LANGS[tv]);
+  monaco.editor.setModelLanguage(editorTarget.getModel(), MONACO_LANGS[sv]);
+
   updateSourceStats(); updateTargetStats();
   showToast('↔ Langages inversés');
 });
 
 // ─── Clear ────────────────────────────────────────────────────────
 btnClear.addEventListener('click', () => {
-  txSource.value = ''; txTarget.value = '';
-  txTarget.style.display = 'none';
+  if (!editorSource || !editorTarget) return;
+  editorSource.setValue('');
+  editorTarget.setValue('');
+  document.getElementById('editor-target-monaco').style.display = 'none';
   placeholder.classList.remove('hidden');
   updateSourceStats(); updateTargetStats();
   setBadge(null, '');
@@ -155,8 +217,14 @@ btnClear.addEventListener('click', () => {
 });
 
 // ─── Changement langage ───────────────────────────────────────────
-selSource.addEventListener('change', () => { labelSource.textContent = LANG_NAMES[selSource.value]; });
-selTarget.addEventListener('change', () => { labelTarget.textContent = LANG_NAMES[selTarget.value]; });
+selSource.addEventListener('change', () => {
+  labelSource.textContent = LANG_NAMES[selSource.value];
+  if (editorSource) monaco.editor.setModelLanguage(editorSource.getModel(), MONACO_LANGS[selSource.value]);
+});
+selTarget.addEventListener('change', () => {
+  labelTarget.textContent = LANG_NAMES[selTarget.value];
+  if (editorTarget) monaco.editor.setModelLanguage(editorTarget.getModel(), MONACO_LANGS[selTarget.value]);
+});
 
 // ─── Copier ───────────────────────────────────────────────────────
 function copyText(text, btn) {
@@ -167,15 +235,25 @@ function copyText(text, btn) {
     setTimeout(() => btn.classList.remove('copied'), 1800);
   });
 }
-btnCopySrc.addEventListener('click', () => copyText(txSource.value, btnCopySrc));
-btnCopyTgt.addEventListener('click', () => copyText(txTarget.value, btnCopyTgt));
+btnCopySrc.addEventListener('click', () => {
+  if (editorSource) copyText(editorSource.getValue(), btnCopySrc);
+});
+btnCopyTgt.addEventListener('click', () => {
+  if (editorTarget) copyText(editorTarget.getValue(), btnCopyTgt);
+});
 
 // ─── Upload ───────────────────────────────────────────────────────
 btnUpload.addEventListener('click', () => fileInput.click());
 fileInput.addEventListener('change', e => {
   const file = e.target.files[0]; if (!file) return;
   const reader = new FileReader();
-  reader.onload = ev => { txSource.value = ev.target.result; updateSourceStats(); showToast(`✓ ${file.name} chargé`, 'success'); };
+  reader.onload = ev => {
+    if (editorSource) {
+      editorSource.setValue(ev.target.result);
+      updateSourceStats();
+      showToast(`✓ ${file.name} chargé`, 'success');
+    }
+  };
   reader.readAsText(file);
   fileInput.value = '';
 });
@@ -220,7 +298,8 @@ async function saveTranslatedCodeToFile(code) {
 }
 
 btnDownload.addEventListener('click', () => {
-  const code = txTarget.value;
+  if (!editorTarget) return;
+  const code = editorTarget.getValue();
   if (!code) { showToast('⚠ Rien à télécharger', 'error'); return; }
   const filename = getTranslatedFilename();
   triggerDownload(code, filename);
@@ -228,7 +307,8 @@ btnDownload.addEventListener('click', () => {
 });
 
 btnSaveFile.addEventListener('click', async () => {
-  const code = txTarget.value;
+  if (!editorTarget) return;
+  const code = editorTarget.getValue();
   if (!code) { showToast('⚠ Rien à enregistrer', 'error'); return; }
 
   try {

@@ -696,45 +696,6 @@ body {
   }
 }
 
-/* ===== Textarea native (remplace Monaco) ===== */
-.code-textarea {
-  width: 100%;
-  height: 100%;
-  background: var(--bg-surface);
-  color: var(--text-primary);
-  font-family: var(--font-mono);
-  font-size: 13.5px;
-  line-height: 1.7;
-  border: none;
-  outline: none;
-  resize: none;
-  padding: 16px 20px;
-  tab-size: 4;
-  caret-color: var(--accent);
-  letter-spacing: 0.2px;
-  box-sizing: border-box;
-  display: block;
-}
-
-.code-textarea::placeholder {
-  color: var(--text-muted);
-  font-style: italic;
-}
-
-.code-textarea:focus {
-  background: #14161f;
-  box-shadow: inset 3px 0 0 var(--accent);
-}
-
-#editor-target.code-textarea {
-  color: var(--green);
-  background: #111417;
-}
-
-.result-container {
-  position: relative;
-}
-
 /* ===== Panneau d'analyse ===== */
 .details-panel {
   flex-shrink: 0;
@@ -835,4 +796,39 @@ body {
   position: absolute;
   left: 0;
   font-weight: 700;
+}
+
+/* ===== AI Star Animation ===== */
+.translate-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.btn-translate:hover .translate-icon {
+  transform: scale(1.2) rotate(10deg);
+  filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.5));
+}
+
+.btn-translate.loading .translate-icon {
+  animation: ai-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes ai-pulse {
+  0%, 100% {
+    transform: scale(1) rotate(0deg);
+    filter: drop-shadow(0 0 2px #fff);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.4) rotate(180deg);
+    filter: drop-shadow(0 0 12px #fff);
+    opacity: 0.7;
+  }
+}
+
+/* Remove old spin animation for button */
+.btn-translate.loading .translate-arrow {
+  animation: none;
 }
