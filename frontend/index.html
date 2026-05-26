@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Code Translator</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <div class="logo">
+      <span class="logo-icon">&lt;/&gt;</span>
+      <span class="logo-text">CodeTranslator</span>
+    </div>
+    <p class="subtitle">Traduisez votre code entre langages en un clic</p>
+  </header>
+
+  <main>
+    <!-- Language selectors -->
+    <div class="controls">
+      <div class="lang-select-group">
+        <label for="source-lang">Langage source</label>
+        <select id="source-lang"></select>
+      </div>
+
+      <button id="swap-btn" title="Inverser les langages">&#8644;</button>
+
+      <div class="lang-select-group">
+        <label for="target-lang">Langage cible</label>
+        <select id="target-lang"></select>
+      </div>
+
+      <button id="translate-btn">
+        <span id="btn-text">Traduire</span>
+        <span id="btn-spinner" class="spinner hidden"></span>
+      </button>
+    </div>
+
+    <!-- Editors -->
+    <div class="editors-container">
+      <div class="editor-panel">
+        <div class="editor-header">
+          <span>Code source</span>
+          <button class="copy-btn" data-target="source">Copier</button>
+        </div>
+        <div id="source-editor" class="editor"></div>
+      </div>
+
+      <div class="editor-panel">
+        <div class="editor-header">
+          <span>Code traduit</span>
+          <button class="copy-btn" data-target="target">Copier</button>
+        </div>
+        <div id="target-editor" class="editor"></div>
+      </div>
+    </div>
+
+    <!-- Explanation panel -->
+    <div id="explanation-panel" class="explanation-panel hidden">
+      <div class="explanation-section">
+        <h3>Explication des différences</h3>
+        <p id="explanation-text"></p>
+      </div>
+      <div class="pitfalls-section">
+        <h3>Pièges à éviter</h3>
+        <ul id="pitfalls-list"></ul>
+      </div>
+    </div>
+
+    <!-- Error message -->
+    <div id="error-banner" class="error-banner hidden">
+      <span id="error-text"></span>
+      <button id="close-error">✕</button>
+    </div>
+  </main>
+
+  <!-- Monaco Editor loader -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
