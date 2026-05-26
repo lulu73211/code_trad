@@ -8,8 +8,8 @@ load_dotenv()
 
 translate_bp = Blueprint("translate", __name__)
 
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-model = genai.GenerativeModel("gemini-1.5-flash")
+genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+model = genai.GenerativeModel("gemini-2.5-flash")
 
 
 @translate_bp.post("/translate")
