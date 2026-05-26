@@ -622,3 +622,70 @@ html, body {
 .result-container {
   position: relative;
 }
+
+/* ===== Panneau d'analyse ===== */
+.details-panel {
+  flex-shrink: 0;
+  background: var(--bg-base);
+  border-top: 1px solid var(--border);
+  overflow: hidden;
+  max-height: 0;
+  transition: max-height 0.3s ease;
+}
+
+.details-panel.visible {
+  max-height: 140px;
+}
+
+.details-body {
+  display: flex;
+  gap: 32px;
+  padding: 12px 20px;
+  overflow-y: auto;
+  max-height: 140px;
+}
+
+.details-section {
+  flex: 1;
+  min-width: 0;
+}
+
+.details-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.details-explanation {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.details-pitfalls {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.details-pitfalls li {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--orange);
+  padding-left: 14px;
+  position: relative;
+  line-height: 1.5;
+}
+
+.details-pitfalls li::before {
+  content: '!';
+  position: absolute;
+  left: 0;
+  font-weight: 700;
+}

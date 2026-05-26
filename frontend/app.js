@@ -1,7 +1,16 @@
 /**
  * CodeTrad — app.js
- * Textarea native — fonctionne sans serveur (file://)
+ * Traduction via le backend Flask (POST /api/translate)
  */
+
+const BACKEND_URL = 'http://localhost:8000';
+
+// ─── Noms affichés ────────────────────────────────────────────────
+const LANG_NAMES = {
+  python: 'Python', javascript: 'JavaScript', typescript: 'TypeScript',
+  java: 'Java', csharp: 'C#', cpp: 'C++', go: 'Go',
+  rust: 'Rust', php: 'PHP', ruby: 'Ruby'
+};
 
 // ─── DOM refs ─────────────────────────────────────────────────────
 const selSource    = document.getElementById('lang-source');
@@ -26,13 +35,6 @@ const tgtChars     = document.getElementById('target-chars');
 const toast        = document.getElementById('toast');
 const txSource     = document.getElementById('editor-source');
 const txTarget     = document.getElementById('editor-target');
-
-// ─── Noms affichés ────────────────────────────────────────────────
-const LANG_NAMES = {
-  python: 'Python', javascript: 'JavaScript', typescript: 'TypeScript',
-  java: 'Java', csharp: 'C#', cpp: 'C++', go: 'Go',
-  rust: 'Rust', php: 'PHP', ruby: 'Ruby'
-};
 
 // ─── Stats ────────────────────────────────────────────────────────
 function updateSourceStats() {
@@ -61,21 +63,25 @@ function setBadge(state, text) {
   if (state) { statusBadge.classList.add(state); statusBadge.textContent = text; }
 }
 
-// ─── Traduction — appel API backend ──────────────────────────────
-// TODO Personne 1 : remplacer l'URL par l'endpoint réel
+// ─── Traduction via le backend Flask ─────────────────────────────
 async function translateCode(sourceCode, sourceLang, targetLang) {
-  const res = await fetch('http://localhost:8000/translate', {
+  const response = await fetch(`${BACKEND_URL}/api/translate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ code: sourceCode, source_lang: sourceLang, target_lang: targetLang })
+    body: JSON.stringify({
+      source_code: sourceCode,
+      source_language: LANG_NAMES[sourceLang],
+      target_language: LANG_NAMES[targetLang]
+    })
   });
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(err || `HTTP ${res.status}`);
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.detail || `Erreur HTTP ${response.status}`);
   }
-  const data = await res.json();
-  // Le backend doit retourner { result: "..." }
-  return data.result ?? data.code ?? data.translation ?? JSON.stringify(data);
+
+  return data; // { translated_code, explanation, pitfalls }
 }
 
 // ─── Bouton Traduire ──────────────────────────────────────────────
@@ -87,7 +93,6 @@ async function handleTranslate() {
   const targetLang = selTarget.value;
   if (sourceLang === targetLang) { showToast('⚠ Source et cible identiques', 'error'); return; }
 
-  // UI loading
   btnTranslate.disabled = true;
   btnTranslate.classList.add('loading');
   btnTranslate.querySelector('.translate-label').textContent = 'Traduction…';
@@ -97,10 +102,11 @@ async function handleTranslate() {
   try {
     const result = await translateCode(code, sourceLang, targetLang);
 
-    txTarget.value = result;
+    txTarget.value = result.translated_code;
     txTarget.style.display = 'block';
     placeholder.classList.add('hidden');
     updateTargetStats();
+    showDetails(result.explanation, result.pitfalls);
 
     setBadge('done', 'Traduit ✓');
     setStatus(`Traduit — ${LANG_NAMES[sourceLang]} → ${LANG_NAMES[targetLang]}`);
@@ -118,7 +124,6 @@ async function handleTranslate() {
 }
 
 btnTranslate.addEventListener('click', handleTranslate);
-
 document.addEventListener('keydown', e => {
   if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); handleTranslate(); }
 });
@@ -129,7 +134,6 @@ btnSwap.addEventListener('click', () => {
   selSource.value = tv; selTarget.value = sv;
   labelSource.textContent = LANG_NAMES[tv];
   labelTarget.textContent = LANG_NAMES[sv];
-
   const sc = txSource.value, tc = txTarget.value;
   txSource.value = tc; txTarget.value = sc;
   updateSourceStats(); updateTargetStats();
@@ -144,16 +148,13 @@ btnClear.addEventListener('click', () => {
   updateSourceStats(); updateTargetStats();
   setBadge(null, '');
   setStatus('Prêt — colle ton code et clique Traduire');
+  document.getElementById('details-panel').classList.remove('visible');
   showToast('Éditeurs effacés');
 });
 
 // ─── Changement langage ───────────────────────────────────────────
-selSource.addEventListener('change', () => {
-  labelSource.textContent = LANG_NAMES[selSource.value];
-});
-selTarget.addEventListener('change', () => {
-  labelTarget.textContent = LANG_NAMES[selTarget.value];
-});
+selSource.addEventListener('change', () => { labelSource.textContent = LANG_NAMES[selSource.value]; });
+selTarget.addEventListener('change', () => { labelTarget.textContent = LANG_NAMES[selTarget.value]; });
 
 // ─── Copier ───────────────────────────────────────────────────────
 function copyText(text, btn) {
@@ -164,21 +165,15 @@ function copyText(text, btn) {
     setTimeout(() => btn.classList.remove('copied'), 1800);
   });
 }
-
 btnCopySrc.addEventListener('click', () => copyText(txSource.value, btnCopySrc));
 btnCopyTgt.addEventListener('click', () => copyText(txTarget.value, btnCopyTgt));
 
 // ─── Upload ───────────────────────────────────────────────────────
 btnUpload.addEventListener('click', () => fileInput.click());
 fileInput.addEventListener('change', e => {
-  const file = e.target.files[0];
-  if (!file) return;
+  const file = e.target.files[0]; if (!file) return;
   const reader = new FileReader();
-  reader.onload = ev => {
-    txSource.value = ev.target.result;
-    updateSourceStats();
-    showToast(`✓ ${file.name} chargé`, 'success');
-  };
+  reader.onload = ev => { txSource.value = ev.target.result; updateSourceStats(); showToast(`✓ ${file.name} chargé`, 'success'); };
   reader.readAsText(file);
   fileInput.value = '';
 });
@@ -187,17 +182,23 @@ fileInput.addEventListener('change', e => {
 btnDownload.addEventListener('click', () => {
   const code = txTarget.value;
   if (!code) { showToast('⚠ Rien à télécharger', 'error'); return; }
-  const ext = { javascript:'js', typescript:'ts', python:'py', java:'java',
-                csharp:'cs', cpp:'cpp', go:'go', rust:'rs', php:'php', ruby:'rb' };
+  const ext = { javascript:'js', typescript:'ts', python:'py', java:'java', csharp:'cs', cpp:'cpp', go:'go', rust:'rs', php:'php', ruby:'rb' };
   const filename = `traduction.${ext[selTarget.value] || 'txt'}`;
   const a = Object.assign(document.createElement('a'), {
     href: URL.createObjectURL(new Blob([code], { type: 'text/plain' })),
     download: filename
   });
-  a.click();
-  URL.revokeObjectURL(a.href);
+  a.click(); URL.revokeObjectURL(a.href);
   showToast(`✓ ${filename} téléchargé`, 'success');
 });
+
+// ─── Panneau d'analyse ────────────────────────────────────────────
+function showDetails(explanation, pitfalls) {
+  document.getElementById('details-explanation').textContent = explanation || '';
+  document.getElementById('details-pitfalls').innerHTML =
+    (pitfalls || []).map(p => `<li>${p}</li>`).join('');
+  document.getElementById('details-panel').classList.add('visible');
+}
 
 // ─── Toast ────────────────────────────────────────────────────────
 let toastTimer = null;
@@ -205,5 +206,5 @@ function showToast(msg, type = '') {
   toast.textContent = msg;
   toast.className = 'toast show' + (type ? ` ${type}` : '');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => toast.classList.remove('show'), 2400);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 2800);
 }
