@@ -1,19 +1,17 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from routers import translate
+from flask import Flask
+from flask_cors import CORS
+from routers.translate import translate_bp
 
-app = FastAPI(title="Code Translator API", version="1.0.0")
+app = Flask(__name__)
+CORS(app)
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-app.include_router(translate.router, prefix="/api")
+app.register_blueprint(translate_bp, url_prefix="/api")
 
 
 @app.get("/")
 def root():
     return {"message": "Code Translator API is running"}
+
+
+if __name__ == "__main__":
+    app.run(debug=True, port=8000)
